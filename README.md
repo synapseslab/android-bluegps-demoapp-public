@@ -50,7 +50,7 @@ The purpose of diagnostic API is to give an indication to the integrator of the 
 
 ## SDK Changelog
 
-[Changelog link](https://synapseslab.com/android-bluegps-sdk-public/changelog/changelog.md)
+[Changelog link](https://synapseslab.com/android-bluegps-sdk-public/changelog/changelog.html)
 
 ## Documentation
 For comprehensive details about BlueGPS SDK, please refer to the complete documentation available here.
