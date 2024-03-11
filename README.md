@@ -29,11 +29,6 @@ and play with it.
 BlueGPSSDK provides some built-in capabilities to search for resources and objects within the backend.
 - [Search objects](https://github.com/synapseslab/android-bluegps-demoapp-public/blob/main/demo-app/app/src/main/java/com/synapseslab/bluegpssdkdemo/search_object/SearchObjectsActivity.kt) - [(documentation)](https://synapseslab.com/android-bluegps-sdk-public/v2/v2.html#8-search-object-api)
 
-#### Controllable items API
-BlueGPSSDK provides a logic to interact with controllable items exposed by the backend. Controllable items could be anything that can be remote controlled by the application.
-
-- [IOT Controllable elements](https://github.com/synapseslab/android-bluegps-demoapp-public/blob/main/demo-app/app/src/main/java/com/synapseslab/bluegpssdkdemo/controllable_elements/ControllableElementsActivity.kt) - [(documentation)](https://github.com/synapseslab/android-bluegps-demoapp-public/blob/main/documentation/bluegps_android_sdk.md#9-controllable-items-api)
-
 #### Area API
 BlueGPSSDK provides some built-in capabilities for rooms and areas.
 
