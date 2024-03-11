@@ -32,7 +32,6 @@ BlueGPSSDK provides some built-in capabilities to search for resources and objec
 #### Area API
 BlueGPSSDK provides some built-in capabilities for rooms and areas.
 
-
 - [Area API](https://github.com/synapseslab/android-bluegps-demoapp-public/blob/main/demo-app/app/src/main/java/com/synapseslab/bluegpssdkdemo/area/AreaActivity.kt) - [(documentation)](https://synapseslab.com/android-bluegps-sdk-public/v2/v2.html#10-area-api)
 
 #### Use BlueGPS Advertising Service
