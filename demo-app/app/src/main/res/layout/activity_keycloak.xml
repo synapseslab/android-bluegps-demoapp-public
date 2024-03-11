@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (c) 2023 Synapses s.r.l.s. All rights reserved.
+  ~
+  ~ Licensed under the Apache License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~ https://github.com/synapseslab/android-bluegps-sdk-demoapp/blob/main/LICENSE.md
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".keycloak.KeycloakActivity">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+
+        <Button
+            android:id="@+id/buttonGuestLogin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_marginTop="32dp"
+            android:layout_weight="0.5"
+            android:minWidth="200dp"
+            android:onClick="guestLogin"
+            android:text="@string/guest_login" />
+
+        <Button
+            android:id="@+id/buttonLogin"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_marginTop="32dp"
+            android:layout_weight="0.5"
+            android:minWidth="200dp"
+            android:onClick="login"
+            android:text="@string/login" />
+
+        <Button
+            android:id="@+id/buttonRefresh"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_weight="0.5"
+            android:minWidth="200dp"
+            android:onClick="refresh"
+            android:text="@string/refresh" />
+
+        <Button
+            android:id="@+id/buttonLogout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="5dp"
+            android:layout_marginBottom="32dp"
+            android:layout_weight="0.5"
+            android:minWidth="200dp"
+            android:onClick="logout"
+            android:text="@string/logout" />
+
+
+        <TextView
+            android:id="@+id/tvResponse"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="TEXT" />
+
+
+    </LinearLayout>
+
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>
