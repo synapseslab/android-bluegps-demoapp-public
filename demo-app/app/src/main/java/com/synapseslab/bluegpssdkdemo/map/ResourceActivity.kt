@@ -102,7 +102,7 @@ class VersionViewHolder private constructor(itemView: View) : RecyclerView.ViewH
     val textView: TextView = itemView as TextView
 
     companion object {
-        private const val LAYOUT_ID = R.layout.item
+        private val LAYOUT_ID = R.layout.item
 
         fun create(inflater: LayoutInflater, parent: ViewGroup?): VersionViewHolder {
             return VersionViewHolder(inflater.inflate(LAYOUT_ID, parent, false))

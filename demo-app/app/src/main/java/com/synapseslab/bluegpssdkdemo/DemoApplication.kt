@@ -27,17 +27,14 @@ class DemoApplication : Application() {
         /**
          * Initialize BlueGPS SDK
          *
-         * @param blueGPSEnvironment set the environment for register the SDK to the server.
-         * The management of the environment is demanded to the app.
          * @param context the context of the app.
          * @param enableNetworkLogs for enabled the network logs. [optionally]
-         * @param keyCloakParameters for Keycloak authentication.
+         * @param sdkEnvironment for Keycloak authentication.
          *
          */
         BlueGPSLib.instance.initSDK(
             sdkEnvironment = Environment.sdkEnvironment,
             context = this,
-            enabledNetworkLogs = BuildConfig.DEBUG,
         )
     }
 

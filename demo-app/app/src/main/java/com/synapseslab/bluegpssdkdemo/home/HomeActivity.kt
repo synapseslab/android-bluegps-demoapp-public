@@ -30,7 +30,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.snackbar.Snackbar
-import com.synapseslab.bluegpssdkdemo.BuildConfig
 import com.synapseslab.bluegpssdkdemo.R
 import com.synapseslab.bluegpssdkdemo.area.AreaActivity
 import com.synapseslab.bluegpssdkdemo.databinding.ActivityHomeBinding
@@ -68,7 +67,7 @@ class HomeActivity : AppCompatActivity() {
             ActivityViewAdapter(mutableListOf()) { clssActivity -> openView(clssActivity) }
         binding.list.adapter = activityListAdapter
         activityListAdapter.setList(activityList)
-        binding.tvVersion.text = "ver. ${BuildConfig.VERSION_NAME}"
+        binding.tvVersion.text = "ver. 1.0.1"
 
     }
 

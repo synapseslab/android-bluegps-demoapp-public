@@ -22,9 +22,6 @@ import com.synapseslab.bluegps_sdk.data.model.environment.SdkEnvironment
  * Set the environment for register the SDK to the server.
  * The management of the environment is demanded to the app.
  *
- * SDK_ENDPOINT (mandatory)
- * APP_ID (mandatory)
- *
  */
 object Environment {
 
