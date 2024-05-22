@@ -38,8 +38,10 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.synapseslab.bluegps_sdk.authentication.core.BlueGPSAuthManager
 import com.synapseslab.bluegps_sdk.component.map.BlueGPSMapListener
 import com.synapseslab.bluegps_sdk.data.model.advertising.AndroidAdvConfiguration
+import com.synapseslab.bluegps_sdk.data.model.map.AuthParameters
 import com.synapseslab.bluegps_sdk.data.model.map.BookingConfiguration
 import com.synapseslab.bluegps_sdk.data.model.map.ClickedObject
 import com.synapseslab.bluegps_sdk.data.model.map.ConfigurationMap
@@ -78,7 +80,7 @@ class MapActivity : AppCompatActivity() {
     private var configurationMap = ConfigurationMap(
         style = MapStyle(
             icons = IconStyle(
-                name = "chorus",
+                name = "bluegps",
                 align = "center",
                 vAlign = "center",
                 followZoom = true
@@ -93,7 +95,6 @@ class MapActivity : AppCompatActivity() {
             )
         ),
         show = ShowMap(all = false, me = true, room = true),
-        buildings = listOf(1,2)
     )
 
     private var hideRoomLayer = false
@@ -168,13 +169,22 @@ class MapActivity : AppCompatActivity() {
                             adjustDarkMode()
                         }
                     }
+
+                    TypeMapCallback.AUTH_ERROR -> {
+                        runOnUiThread {
+                            binding.webView.initAuth(AuthParameters(token = BlueGPSAuthManager.instance.accessToken()))
+                        }
+                    }
+
                     TypeMapCallback.PARK_CONF -> {
                         val cType = object : TypeToken<BookingConfiguration>() {}.type
-                        val payloadResponse = Gson().fromJson<BookingConfiguration>(data.payload, cType)
+                        val payloadResponse =
+                            Gson().fromJson<BookingConfiguration>(data.payload, cType)
                         if (payloadResponse.availableDateList!!.isNotEmpty()) {
                             Log.d(TAG, TAG + payloadResponse.availableDateList)
                         }
                     }
+
                     TypeMapCallback.MAP_CLICK, TypeMapCallback.TAG_CLICK -> {
                         val cType = object : TypeToken<Position>() {}.type
                         val payloadResponse = Gson().fromJson<Position>(data.payload, cType)
@@ -344,6 +354,7 @@ class MapActivity : AppCompatActivity() {
                             )
                             .show()
                     }
+
                     else -> {}
                 }
             }
@@ -355,15 +366,17 @@ class MapActivity : AppCompatActivity() {
         viewModel.getDeviceConfiguration()
 
         viewModel.viewState.observe(this) { state ->
-            when(state) {
+            when (state) {
                 is ViewState.Failed -> {
                     Log.d(TAG, " FAILED: ${state.message}")
                 }
+
                 is ViewState.Success -> {
                     val androidAdvConfiguration = state.data as AndroidAdvConfiguration
                     this.configurationMap.tagid = androidAdvConfiguration.tagid
                     startInitMap()
                 }
+
                 else -> {}
             }
         }
@@ -528,10 +541,12 @@ class MapActivity : AppCompatActivity() {
                 showToolbarView()
                 true
             }
+
             android.R.id.home -> {
                 finish()
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -595,7 +610,7 @@ class ResourceSelectPoi : ActivityResultContract<DataFilter, GenericResource?>()
             putExtra("resourceList", input)
         }
 
-    override fun parseResult(resultCode: Int, result: Intent?) : GenericResource? {
+    override fun parseResult(resultCode: Int, result: Intent?): GenericResource? {
         if (resultCode != Activity.RESULT_OK) {
             return null
         }
