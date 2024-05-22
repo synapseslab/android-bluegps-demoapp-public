@@ -2,10 +2,6 @@
 
 A minimal DemoApp for using BlueGPS SDK
 
-| Latest Update    | Stable Release	 | Beta Release    | Alpha Release   |
-| ---------------- | --------------- | --------------- | --------------- |
-| May 21, 2024     | 2.0.3           | -               | -               |
-
 ## Sample App
 
 To run the sample app, start by cloning this repo:
