@@ -48,5 +48,5 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 
 
-    implementation 'com.github.synapseslab:android-bluegps-sdk-public:2.0.3'
+    implementation 'com.github.synapseslab:android-bluegps-sdk-public:2.0.4'
 }
