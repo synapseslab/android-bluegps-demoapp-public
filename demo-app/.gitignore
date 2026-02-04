@@ -103,3 +103,5 @@ docusaurus/.env
 
 .sign/keystore.properties
 .sign/release.keystore
+
+.idea
