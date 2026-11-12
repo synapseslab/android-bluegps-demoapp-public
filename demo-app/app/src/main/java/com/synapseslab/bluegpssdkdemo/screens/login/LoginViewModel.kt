@@ -100,11 +100,14 @@ class LoginViewModel : ViewModel() {
     /**
      * Logs the current user out.
      *
-     * This function calls the `logout` method from the `BlueGPSAuthManager`.
+     * It stops BLE advertising first: the SDK logout stops position tracking but not advertising,
+     * and the device would keep broadcasting the tag of a user who has logged out.
+     * Then it calls the `logout` method from the `BlueGPSAuthManager`.
      * On successful logout, it updates the UI state to reflect that the user is logged out.
      * On failure, it logs an error message.
      */
     fun logout() {
+        AdvManager.stopAdvertising()
         viewModelScope.launch {
             BlueGPSAuthManager.instance.logout(handleCallback = {
                 if (it) {

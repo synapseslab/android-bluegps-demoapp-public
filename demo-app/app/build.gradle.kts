@@ -14,7 +14,13 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "6.0.0"
+        versionName = "6.3.7"
+
+        // Required by the SDK manifest (HTTPS App Link on AuthenticationActivity), or the manifest
+        // merge fails. This demo keeps a custom-scheme redirect_uri: set them to your BlueGPS host
+        // anyway. See "Login redirect" in the SDK documentation.
+        manifestPlaceholders["authRedirectHost"] = "your-bluegps-host.example.com"
+        manifestPlaceholders["authRedirectPath"] = "/mobileapp/callback"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

@@ -81,9 +81,12 @@ object AdvManager {
 
     /**
      * Unbind from [BlueGPSAdvertisingService]. Call this symmetrically to the bind
-     * (e.g., in onStop/onDestroy) to release resources.
+     * (bind in onCreate → unbind in onDestroy) to release resources.
      */
     fun unBindBlueGPSAdvertisingService(context: Context) {
+        // unbindService() does not call onServiceDisconnected: drop the reference here, or later
+        // calls would reach a service instance Android has already destroyed.
+        blueGPSAdvertisingService = null
         try {
             Log.i(TAG, "context: ${context.hashCode()}  unBindBlueGPSAdvertisingService")
             context.unbindService(advertisingServiceConnection)

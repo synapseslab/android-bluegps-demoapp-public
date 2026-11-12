@@ -77,7 +77,14 @@ In this case multiple devices can use the same client credentials to be authenti
 > [!NOTE]
 > This paramaters are provided by **Synapses** after the purchase of the **BlueGPS license**.
 
-Finally in your `AndroidManifest.xml` add this and change `host` and `scheme` with your configuration.
+#### Login redirect
+
+After the browser login, Keycloak sends the user back to the app through the `redirect_uri`. The SDK
+supports two ways to receive it.
+
+**Custom URI scheme (used by this demo, still supported).** You can keep the previous method: a
+`redirect_uri` with your own scheme and host (for example `myapp://my.host`), with no
+`/mobileapp/callback` App Link. Set the same scheme and host in your `AndroidManifest.xml`:
 
 ```xml
 <activity
@@ -94,6 +101,27 @@ Finally in your `AndroidManifest.xml` add this and change `host` and `scheme` wi
     </intent-filter>
 </activity>
 ```
+
+Even with the custom scheme, from SDK 6.1.7 the two manifest placeholders below are **required**,
+or the manifest merge fails: the SDK manifest declares an HTTPS App Link on `AuthenticationActivity`
+built from them. Set them to your BlueGPS host (see `app/build.gradle.kts`):
+
+```kotlin
+android {
+    defaultConfig {
+        manifestPlaceholders["authRedirectHost"] = "{{your-bluegps-host}}"
+        manifestPlaceholders["authRedirectPath"] = "/mobileapp/callback"
+    }
+}
+```
+
+**HTTPS App Link (recommended).** Set `redirect_uri` to
+`https://<authRedirectHost><authRedirectPath>`, register it in Keycloak, publish your package and
+signing certificate fingerprints in `https://<authRedirectHost>/.well-known/assetlinks.json`, and do
+not declare your own intent filter on `AuthenticationActivity`: the SDK declares it. Android then
+delivers the login result only to your app, which a custom scheme cannot guarantee. Full steps in
+the [SDK documentation](https://synapseslab.com/android-bluegps-sdk-public/doc/doc.html), *Login
+redirect*.
 
 Now your app is ready for use keycloak.
 
@@ -148,11 +176,16 @@ com.synapseslab.bluegpssdkdemo/
 | State | `StateFlow` / `SharedFlow` + Kotlin Coroutines |
 | Navigation | Compose Navigation (`NavHost`) |
 | DI | ViewModel scoped to Compose (no Hilt in this demo) |
-| SDK | `com.github.synapseslab:android-bluegps-sdk-public:6.0.0` |
+| SDK | `com.github.synapseslab:android-bluegps-sdk-public:6.3.7` |
 | Min SDK | 24 |
 | Target / Compile SDK | 36 |
 | Kotlin | 2.1.0 |
 | AGP | 8.13.0 |
+| Gradle | 9.3.1 (runs on the JDK bundled with current Android Studio) |
+
+**SDK requirements** for your own app: `compileSdk` 36 or higher, Kotlin 2.1 or higher, and OkHttp
+5.1 (`okhttp` and `logging-interceptor`) if your app declares OkHttp itself: the SDK calls an API
+that exists only from OkHttp 5, and forcing 4.x crashes at `initSDK`.
 
 ---
 
@@ -439,9 +472,9 @@ Tapping **Logout** calls `LoginViewModel.logout()`, which stops advertising, log
 | Method | Description |
 |---|---|
 | `bindBlueGPSAdvertisingService(context)` | Binds to the foreground advertising service. Called in `MainActivity.onCreate()`. |
-| `unBindBlueGPSAdvertisingService(context)` | Unbinds the service. Called in `MainActivity.onStop()`. |
+| `unBindBlueGPSAdvertisingService(context)` | Unbinds the service and drops the reference to it. Called in `MainActivity.onDestroy()`, symmetric with the bind in `onCreate()`: unbinding in `onStop()` would leave a reference to a service instance Android has destroyed, and the notification **Stop** would no longer stop advertising. |
 | `startAdvertising(config)` | Starts BLE advertisement with the provided `AndroidAdvConfiguration` (contains the device's tag ID). |
-| `stopAdvertising()` | Stops BLE advertisement. Called in `MainActivity.onDestroy()`. |
+| `stopAdvertising()` | Stops BLE advertisement. Called on logout (the SDK logout does not stop it) and in `MainActivity.onDestroy()`, except on a configuration change. |
 
 The advertising configuration (`AndroidAdvConfiguration`) is retrieved from the server via `BlueGPSLib.instance.getOrCreateConfiguration()` after every successful login.
 
@@ -479,11 +512,12 @@ The app declares and requests the following permissions at runtime:
 | Permission | Purpose |
 |---|---|
 | `BLUETOOTH_CONNECT` | Connect to BLE devices (Android 12+). |
+| `BLUETOOTH_ADVERTISE` | BLE advertising of the device tag (Android 12+). Declared by the SDK manifest, requested by the app. Without it `startAdv` reports `ServiceStatus.ERROR`. |
 | `BLUETOOTH_SCAN` | Scan for nearby BLE beacons (Android 12+). |
 | `ACCESS_FINE_LOCATION` | Required for BLE scanning on Android < 12. |
 | `ACCESS_COARSE_LOCATION` | Fallback location permission. |
 | `ACCESS_BACKGROUND_LOCATION` | Keep tracking active when the app is in the background (Android 10+). |
-| `POST_NOTIFICATIONS` | Show beacon event notifications (Android 13+). |
+| `POST_NOTIFICATIONS` | Show beacon event notifications and the SDK foreground-service notifications (Android 13+). Without it, advertising and beacon scanning run only while the app is in the foreground (SDK 6.3.4+). |
 | `FOREGROUND_SERVICE` | Run the advertising service in the foreground. |
 
 `MainActivity` uses `ActivityResultContracts.RequestMultiplePermissions` to request foreground permissions first, then `RequestPermission` for background location separately. If any permission is denied, a rationale UI is shown with a **Grant Permissions** button.
@@ -509,7 +543,7 @@ sealed class Resource<T> {
 | `BlueGPSLib.instance.initSDK(sdkEnvironment, context)` | Initializes the SDK. Must be called before any other API. | `Unit` |
 | `BlueGPSLib.instance.isAValidSession()` | Emits `true` if the current token is valid. | `Flow<Boolean>` |
 | `BlueGPSLib.instance.accessToken()` | Returns the raw JWT access token string. | `String?` |
-| `BlueGPSAuthManager.instance.guestLogin()` | Authenticates as a guest using client credentials. | `Resource<TokenResponse>` |
+| `BlueGPSAuthManager.instance.guestLogin()` | Authenticates as a guest using client credentials. Never throws: a missing setting returns `Resource.Error` with code `400` (SDK 6.3.5+). | `Resource<KeyCloakAuthResponse>` |
 | `BlueGPSAuthManager.instance.logout(callback)` | Logs out and revokes the token via Keycloak. | `Unit` (async callback) |
 
 ### Device & Configuration

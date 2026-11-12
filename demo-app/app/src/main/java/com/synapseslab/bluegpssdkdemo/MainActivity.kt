@@ -149,16 +149,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        // Unbind the advertising service to avoid leaks when the activity stops
-        AdvManager.unBindBlueGPSAdvertisingService(applicationContext)
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        // Ensure advertising is stopped when the activity is destroyed
-        AdvManager.stopAdvertising()
+        // Stop advertising when the activity really goes away. A configuration change (rotation)
+        // recreates it while the ViewModel survives and would not start advertising again.
+        if (!isChangingConfigurations) {
+            AdvManager.stopAdvertising()
+        }
+        // Unbind here, symmetric with the bind in onCreate. Unbinding in onStop left AdvManager
+        // talking to a destroyed service instance after the app went to background and back.
+        AdvManager.unBindBlueGPSAdvertisingService(applicationContext)
     }
 }
 

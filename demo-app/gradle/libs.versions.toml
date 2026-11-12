@@ -7,7 +7,7 @@ activityCompose = "1.12.1"
 composeBom = "2024.09.00"
 navigationCompose = "2.7.7"
 lifecycleViewmodelCompose = "2.10.0"
-androidBlueGPSSdk = "6.0.0"
+androidBlueGPSSdk = "6.3.7"
 
 [libraries]
 android-bluegps-sdk = { group = "com.github.synapseslab", name = "android-bluegps-sdk-public", version.ref = "androidBlueGPSSdk" }
