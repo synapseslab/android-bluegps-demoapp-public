@@ -12,6 +12,25 @@ git clone git@github.com:synapseslab/android-bluegps-demoapp-public.git
 
 and play with it.
 
+### What's new with SDK 6.4
+
+- **Background session** (SDK 6.4.0): the app keeps working in the background behind **one**
+  ongoing notification whose content is entirely the app's. Try it in the **Session** tab
+  ([SessionScreen](#sessionscreen)); the code is in `session/DemoSession.kt`.
+- **One switch in this demo: the session.** Logging in starts nothing. **Start session** starts the
+  session, beacon scanning and advertising together; **Stop session**, the Stop of the
+  notification and the logout stop all of them; after a reboot they restart together. The app
+  always shows one notification, with one icon.
+- **New advertising API**: `BlueGPSLib.instance.startAdvertising()` / `stopAdvertising()` /
+  `advertising`. The demo calls it from `DemoSession`.
+- **`BlueGPSAdvertisingService` is deprecated** and removed in SDK 7.0.0. It still works. The old
+  way has its own screen, apart from the new one: **Settings → Legacy advertising (deprecated)**
+  ([LegacyAdvertisingScreen](#legacyadvertisingscreen)), code in `advertising/AdvManager.kt`.
+- **The SDK logout stops everything**: session, advertising, beacon scanning and the location
+  modules. The app no longer stops advertising itself before logging out.
+- SDK 6.4.1: `guestLogin()` right after `initSDK` works, and a session resumed after a restart keeps
+  its login mode (guest or credentials).
+
 ## Getting Started
 Your first step is initializing the BlueGPSLib, which is the main entry point for all operations in the library. BlueGPSLib is a singleton: you'll create it once and re-use it across your application.
 
@@ -151,18 +170,21 @@ MainActivity
 
 ```
 com.synapseslab.bluegpssdkdemo/
-├── advertising/        # BLE advertising service wrapper (AdvManager)
+├── advertising/        # Legacy advertising example (AdvManager, deprecated)
 ├── constants/          # Environment configuration object
 ├── receiver/           # BroadcastReceivers (beacon events, boot)
 ├── routes/             # Compose navigation graph (AppRoutes)
+├── session/            # Background session: notification content and Stop action
 ├── screens/
 │   ├── init/           # Splash / loading screen
+│   ├── legacy/         # Legacy advertising (deprecated), opened from Settings
 │   ├── login/          # Authentication screen
 │   ├── main/           # Bottom-nav host screen
 │   ├── map/            # Interactive indoor map
 │   ├── booking/        # Resource search & booking
 │   ├── navigation/     # Wayfinding / route-to-destination
 │   ├── sse/            # Real-time Server-Sent Events log
+│   ├── session/        # Background session and advertising
 │   └── settings/       # User info & logout
 ├── ui/theme/           # Material 3 colors, typography, theme
 └── utils/              # JWT decode helper
@@ -176,7 +198,7 @@ com.synapseslab.bluegpssdkdemo/
 | State | `StateFlow` / `SharedFlow` + Kotlin Coroutines |
 | Navigation | Compose Navigation (`NavHost`) |
 | DI | ViewModel scoped to Compose (no Hilt in this demo) |
-| SDK | `com.github.synapseslab:android-bluegps-sdk-public:6.3.7` |
+| SDK | `com.github.synapseslab:android-bluegps-sdk-public:6.4.1` |
 | Min SDK | 24 |
 | Target / Compile SDK | 36 |
 | Kotlin | 2.1.0 |
@@ -206,6 +228,7 @@ isLoggedIn == true  →  MainScreen (replaces back-stack)
 | Map | `map` | `MapScreen` |
 | SSE | `sse` | `SSEScreen` |
 | Booking | `booking` | `BookingScreen` |
+| Session | `session` | `SessionScreen` |
 | Settings | `settings` | `SettingsScreen` |
 
 `BookingScreen` can push `NavigationScreen` onto the stack by navigating to `navigation/{positionJson}`, where `positionJson` is a Gson-serialized `Position` object.
@@ -231,10 +254,12 @@ Provides two ways to authenticate:
 | **Guest Login** | Calls `BlueGPSAuthManager.instance.guestLogin()` directly — no browser required. Suitable for shared/kiosk deployments. |
 | **Login** | Launches the SDK's `AuthLoginActivity`, which opens a Keycloak browser flow for full user authentication. |
 
-After a successful login of either type the ViewModel:
-1. Calls `getOrCreateConfiguration()` to retrieve or create the device's BLE advertising configuration from the server.
-2. Starts BLE advertising via `AdvManager` so the device is detectable by BlueGPS beacons.
-3. Sets `isLoggedIn = true`, triggering navigation to `MainScreen`.
+After a successful login of either type the ViewModel sets `isLoggedIn = true`, triggering
+navigation to `MainScreen`. Nothing else starts at login: beacon scanning and advertising start
+with the background session (Session tab).
+
+Neither login writes its result to the log: it holds the access token (and the refresh token for
+the user login).
 
 **ViewModel state**
 
@@ -248,8 +273,7 @@ val isLoggedIn: StateFlow<Boolean?> // null = checking, true = logged in, false 
 |---|---|
 | `checkLoginStatus()` | Observes `BlueGPSLib.instance.isAValidSession()` and updates `isLoggedIn`. |
 | `guestLogin()` | Calls `BlueGPSAuthManager.instance.guestLogin()` and stores the returned token in the SDK. |
-| `logout()` | Calls `BlueGPSAuthManager.instance.logout()`, stops advertising, and sets `isLoggedIn = false`. |
-| `getOrCreateConfiguration()` | Fetches the device's `AndroidAdvConfiguration` and starts advertising with `AdvManager`. |
+| `logout()` | Calls `BlueGPSAuthManager.instance.logout()` and sets `isLoggedIn = false`. The SDK stops session, advertising and tracking itself. |
 
 ---
 
@@ -258,11 +282,10 @@ val isLoggedIn: StateFlow<Boolean?> // null = checking, true = logged in, false 
 **File:** `screens/main/MainScreen.kt`
 
 The root screen after login. It:
-- Renders a `BottomNavigationBar` with four tabs.
-- Calls `BlueGPSLib.instance.startTrackingUserPosition()` on composition, passing a `PendingIntent` that targets `BeaconEventReceiver`.
-- Calls `BlueGPSLib.instance.stopTrackingUserPosition()` on disposal.
-
-This ensures continuous BLE-based position tracking while the user is inside the app.
+- Renders a `BottomNavigationBar` with five tabs.
+- Does **not** start beacon scanning: since SDK 6.4 the demo starts it with the background session
+  (see [SessionScreen](#sessionscreen)). Map and SSE show a hint (`SessionHint`) while the session
+  is not running.
 
 ---
 
@@ -445,11 +468,76 @@ data class SSEUiState(
 
 ---
 
+### SessionScreen
+
+**File:** `screens/session/SessionScreen.kt` · `SessionViewModel.kt` · `session/DemoSession.kt` · `session/SessionStopReceiver.kt`
+
+Shows the **background session** of SDK 6.4.0: one ongoing notification, drawn by the app, under
+which advertising, beacon scanning and the location modules keep running when the app leaves the
+screen. Same API as the BlueGPS iOS SDK.
+
+| Control | What it does |
+|---|---|
+| **Start session** | `DemoSession.start()`: the session (`backgroundSession.start(channel, initial, updates, render)`), then beacon scanning (`BeaconTracking.start()` → `startTrackingUserPosition()`) and advertising (`startAdvertising()`). The notification appears at once, on the app's channel `live_session`, and the scan and advertising run under it. |
+| **Stop session** | `backgroundSession.stop()`: stops the session and everything under it (advertising, beacon scanning) and removes the notification. |
+| **Update notification** | Changes the content: the notification is redrawn (at most once per second). |
+| **Stop** in the notification | The app's own action (`SessionStopReceiver`): same as **Stop session**. The SDK puts no text, icon or action of its own in the notification. |
+
+The screen shows what the SDK reports: `state` (`Idle` / `Running`), `indicator` (the
+notification: `Shown`, `Ended`, `Unavailable`), `limitations` (for example
+`INDICATOR_NOT_ALLOWED` without `POST_NOTIFICATIONS`), the beacon scan
+(`BlueGPSLib.instance.beaconScanRunningFlow`), `advertising` (`Off` / `On` / `Failed`) and the
+last `events`. The notification text shows the beacon scan and advertising states too.
+
+How the demo builds the notification:
+
+```kotlin
+BlueGPSLib.instance.backgroundSession.start(
+    channel = IndicatorChannel(id = "live_session", name = getString(R.string.session_channel_name)),
+    initial = content.value,
+    updates = content,                 // a StateFlow kept in DemoSession, not in a ViewModel
+) { c ->                               // render: runs at every new value
+    setSmallIcon(R.drawable.ic_session)
+    setContentTitle(getString(R.string.session_title))
+    setContentText(c.summary)          // collapsed: "Beacon scan on · Advertising on, tag …"
+    setStyle(NotificationCompat.BigTextStyle().bigText(c.details))   // expanded: one line per job
+    setSubText(getString(R.string.session_updates, c.updates))
+    setContentIntent(openApp)          // tap: back to the app
+    addAction(0, getString(R.string.session_stop), stop)   // stop: PendingIntent → SessionStopReceiver
+}
+```
+
+Things to know:
+
+- **Start the session with the app in the foreground.** From the background Android refuses the
+  foreground service and the indicator is `Unavailable(REQUEST_FAILED)`.
+- **Keep the content in an object that lives as long as the app** (`DemoSession`): a flow tied to a
+  screen stops with it and freezes the notification on its last value.
+- **Without `POST_NOTIFICATIONS`**, or after the user swipes the notification away (Android 14+),
+  the session goes on but its work pauses when the app goes to the background and resumes when it
+  comes back.
+- **Advertising starts after the notification is up.** The SDK starts advertising with the app in
+  the foreground or with a visible notification: after a reboot the app is not in the foreground,
+  so `DemoSession` waits for the indicator before calling `startAdvertising()`.
+- What did not start (beacon scan, advertising) is shown on the screen with the reason.
+- **The "left on" flag** (`DemoSession.wasLeftOn()`, SharedPreferences) is set by Start session and
+  cleared by Stop session and by every `Stopped` event (logout, the Stop of the notification). When
+  the UI starts with the flag set but no session running (the process died), it is cleared.
+- When the activity is closed for good, `MainActivity` stops advertising **unless a session is
+  running** (it can only be on without a session if started from the legacy screen).
+- The notification icon (`ic_session`, the BlueGPS whale) is a copy in the demo's own resources:
+  the content of the notification, icon included, belongs to the app.
+
+Full guide: [SDK documentation, §4](https://synapseslab.com/android-bluegps-sdk-public/doc/doc.html).
+
+---
+
 ### SettingsScreen
 
 **File:** `screens/settings/SettingsScreen.kt` · `SettingsViewModel.kt`
 
-A simple informational screen with a logout action.
+A simple informational screen with a logout action, and the entry to the legacy advertising
+screen.
 
 | Field | Source |
 |---|---|
@@ -457,26 +545,70 @@ A simple informational screen with a logout action.
 | **Tag ID** | `BlueGPSLib.instance.userTagId()` — the BLE tag identifier assigned to this device. |
 | **App version** | `PackageManager.getPackageInfo().versionName` |
 
-Tapping **Logout** calls `LoginViewModel.logout()`, which stops advertising, logs out via Keycloak, and navigates back to `LoginScreen`.
+Tapping **Logout** calls `LoginViewModel.logout()`, which logs out via Keycloak and navigates back to `LoginScreen`. The SDK logout stops the session, advertising and tracking (SDK 6.4.0+).
+
+---
+
+### LegacyAdvertisingScreen
+
+**File:** `screens/legacy/LegacyAdvertisingScreen.kt` · `LegacyAdvertisingViewModel.kt` · `advertising/AdvManager.kt`
+
+Opened from **Settings → Legacy advertising (deprecated)**. The old way to advertise, kept for apps
+that still use `BlueGPSAdvertisingService` (deprecated since SDK 6.4.0, removed in 7.0.0). It is a
+separate screen on purpose: the old and the new way must not be mixed in an app, because they drive
+the same advertising.
+
+| Control | What it does |
+|---|---|
+| **Bind** / **Unbind** | `AdvManager.bindBlueGPSAdvertisingService()` / `unBindBlueGPSAdvertisingService()`, on the application context. |
+| **startAdv** | `getOrCreateConfiguration()`, then `AdvManager.startAdvertising(config)`. Without a session the service shows its own notification. |
+| **stopAdv** | `AdvManager.stopAdvertising()`. |
+
+The last `AdvertisingStatus` broadcast (`STARTED`, `STOPPED`, `ERROR`) is shown while the screen is
+open, received with `RECEIVER_NOT_EXPORTED`. While the background session runs, Bind, startAdv and
+stopAdv are disabled: the two ways drive the same advertising. The screen binds to the
+application context and unbinds only with **Unbind**; in an app, bind and unbind with the
+activity (see [BLE Advertising](#ble-advertising)).
 
 ---
 
 ## Background Components
 
-### BLE Advertising (`AdvManager`)
+### BLE Advertising
+
+The demo uses the **new advertising API** (SDK 6.4.0+), with no binding and no broadcast, from
+`DemoSession.start()`:
+
+```kotlin
+try {
+    BlueGPSLib.instance.startAdvertising()     // configuration from the server
+} catch (e: AdvertisingException) {
+    // e.code: BLUETOOTH_OFF, BLUETOOTH_NOT_AUTHORIZED, INVALID_TAG_ID, CONFIGURATION_UNAVAILABLE,
+    //         STARTED_FROM_BACKGROUND, ADVERTISING_NOT_SUPPORTED, ADVERTISING_FAILED
+}
+BlueGPSLib.instance.advertising                // StateFlow: Off · On(configuration) · Failed(code)
+BlueGPSLib.instance.stopAdvertising()
+```
+
+#### Legacy: `AdvManager` (deprecated)
 
 **File:** `advertising/AdvManager.kt`
 
-`AdvManager` is a singleton that wraps `BlueGPSAdvertisingService`. It is responsible for making the device discoverable by BlueGPS beacons.
+> [!WARNING]
+> `BlueGPSAdvertisingService` is **deprecated since SDK 6.4.0 and removed in 7.0.0**. It still
+> works, on the same engine as `startAdvertising()`, so existing integrations do not break. The
+> app flow no longer uses `AdvManager`: it is kept, marked `@Deprecated`, for apps that still use
+> the service, and driven only by the [LegacyAdvertisingScreen](#legacyadvertisingscreen). Move to
+> the new API when you can.
+
+`AdvManager` is a singleton that wraps `BlueGPSAdvertisingService`:
 
 | Method | Description |
 |---|---|
-| `bindBlueGPSAdvertisingService(context)` | Binds to the foreground advertising service. Called in `MainActivity.onCreate()`. |
-| `unBindBlueGPSAdvertisingService(context)` | Unbinds the service and drops the reference to it. Called in `MainActivity.onDestroy()`, symmetric with the bind in `onCreate()`: unbinding in `onStop()` would leave a reference to a service instance Android has destroyed, and the notification **Stop** would no longer stop advertising. |
-| `startAdvertising(config)` | Starts BLE advertisement with the provided `AndroidAdvConfiguration` (contains the device's tag ID). |
-| `stopAdvertising()` | Stops BLE advertisement. Called on logout (the SDK logout does not stop it) and in `MainActivity.onDestroy()`, except on a configuration change. |
-
-The advertising configuration (`AndroidAdvConfiguration`) is retrieved from the server via `BlueGPSLib.instance.getOrCreateConfiguration()` after every successful login.
+| `bindBlueGPSAdvertisingService(context)` | Binds to the advertising service. Call it in `Activity.onCreate()`. |
+| `unBindBlueGPSAdvertisingService(context)` | Unbinds the service and drops the reference to it. Call it in `Activity.onDestroy()`, symmetric with the bind in `onCreate()`. |
+| `startAdvertising(config)` | Starts BLE advertisement with the provided `AndroidAdvConfiguration` (from `BlueGPSLib.instance.getOrCreateConfiguration()`). |
+| `stopAdvertising()` | Stops BLE advertisement. |
 
 ---
 
@@ -496,12 +628,20 @@ A `BroadcastReceiver` that handles beacon proximity events even when the app is 
 
 **File:** `receiver/BootCompletedReceiver.kt`
 
-Restarts position tracking automatically after a device reboot.
+Restarts the background session, and beacon scanning under it, after a device reboot.
 
-- Listens for `ACTION_BOOT_COMPLETED`.
+- Listens for `ACTION_BOOT_COMPLETED` (delivered after the first unlock).
 - Re-initializes `BlueGPSLib` with `Environment.sdkEnvironment`.
-- Restarts `startTrackingUserPosition()` with a `BeaconEventReceiver` `PendingIntent`.
-- Ignores the broadcast if the device uptime exceeds 10 minutes (filters spurious broadcasts sent during development).
+- Calls `DemoSession.start()`. Android lets an app start a foreground service right after
+  `BOOT_COMPLETED`; at any other moment in the background the session cannot start.
+- Only if the user left the session on (Start session, never stopped) and is still logged in.
+- Android does not send `BOOT_COMPLETED` only at boot: also when the app is opened again after a
+  force stop or after its data was cleared. The same rule applies: after a force stop with the
+  session left on, it comes back; after the data was cleared, nothing starts.
+- Beacon scanning and advertising restart with the session. Advertising waits for the notification:
+  the app is not in the foreground at boot.
+- A session started at boot has no location access until the app comes to the foreground
+  (Android rule for foreground services started from the background).
 
 ---
 
@@ -512,13 +652,13 @@ The app declares and requests the following permissions at runtime:
 | Permission | Purpose |
 |---|---|
 | `BLUETOOTH_CONNECT` | Connect to BLE devices (Android 12+). |
-| `BLUETOOTH_ADVERTISE` | BLE advertising of the device tag (Android 12+). Declared by the SDK manifest, requested by the app. Without it `startAdv` reports `ServiceStatus.ERROR`. |
+| `BLUETOOTH_ADVERTISE` | BLE advertising of the device tag (Android 12+). Declared by the SDK manifest, requested by the app. Without it `startAdvertising()` throws `AdvertisingException(BLUETOOTH_NOT_AUTHORIZED)`. |
 | `BLUETOOTH_SCAN` | Scan for nearby BLE beacons (Android 12+). |
 | `ACCESS_FINE_LOCATION` | Required for BLE scanning on Android < 12. |
 | `ACCESS_COARSE_LOCATION` | Fallback location permission. |
 | `ACCESS_BACKGROUND_LOCATION` | Keep tracking active when the app is in the background (Android 10+). |
-| `POST_NOTIFICATIONS` | Show beacon event notifications and the SDK foreground-service notifications (Android 13+). Without it, advertising and beacon scanning run only while the app is in the foreground (SDK 6.3.4+). |
-| `FOREGROUND_SERVICE` | Run the advertising service in the foreground. |
+| `POST_NOTIFICATIONS` | Show the background session notification and the beacon event notifications (Android 13+). Without it the session reports `INDICATOR_NOT_ALLOWED`, and advertising and beacon scanning run only while the app is in the foreground. |
+| `FOREGROUND_SERVICE` | Run the background session (and the legacy advertising service) in the foreground. |
 
 `MainActivity` uses `ActivityResultContracts.RequestMultiplePermissions` to request foreground permissions first, then `RequestPermission` for background location separately. If any permission is denied, a rationale UI is shown with a **Grant Permissions** button.
 
@@ -550,7 +690,11 @@ sealed class Resource<T> {
 
 | Method | Description | Returns |
 |---|---|---|
-| `BlueGPSLib.instance.getOrCreateConfiguration()` | Retrieves the device's BLE advertising configuration from the server, creating one if needed. | `Resource<AndroidAdvConfiguration>` |
+| `BlueGPSLib.instance.startAdvertising()` | Starts BLE advertising, the configuration from the server (SDK 6.4.0+). Suspend; throws `AdvertisingException`. | `Unit` |
+| `BlueGPSLib.instance.stopAdvertising()` | Stops BLE advertising. | `Unit` |
+| `BlueGPSLib.instance.advertising` | Advertising state: `Off`, `On(configuration)`, `Failed(code)`. | `StateFlow<AdvertisingState>` |
+| `BlueGPSLib.instance.backgroundSession` | The background session: `start`, `stop`, `state`, `indicator`, `limitations`, `events`. | `BackgroundSession` |
+| `BlueGPSLib.instance.getOrCreateConfiguration()` | Retrieves the device's BLE advertising configuration from the server, creating one if needed (used by the legacy `AdvManager`). | `Resource<AndroidAdvConfiguration>` |
 | `BlueGPSLib.instance.userTagId()` | Returns the BLE tag ID assigned to this device. | `String?` |
 
 ### Position Tracking

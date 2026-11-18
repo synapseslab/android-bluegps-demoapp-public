@@ -44,8 +44,13 @@
             </intent-filter>
         </activity>
 
+        <!-- The Stop action of the background session notification (see session/DemoSession.kt). -->
+        <receiver
+            android:name=".session.SessionStopReceiver"
+            android:exported="false" />
+
         <!--
-  The BootCompletedReceiver is declared here to restart the service when the device reboots.
+  The BootCompletedReceiver restarts the background session after a reboot, if the user left it on.
 -->
         <receiver
             android:name=".receiver.BootCompletedReceiver"

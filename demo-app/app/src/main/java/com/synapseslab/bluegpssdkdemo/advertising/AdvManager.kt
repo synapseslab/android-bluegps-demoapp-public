@@ -14,10 +14,21 @@ import android.os.IBinder
 import android.util.Log
 import com.synapseslab.bluegps_sdk.data.model.advertising.AndroidAdvConfiguration
 import com.synapseslab.bluegps_sdk.service.BlueGPSAdvertisingService
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 private const val TAG = "AdvManager"
 
 /**
+ * **Legacy example, deprecated.** Advertising through [BlueGPSAdvertisingService] (bind +
+ * broadcast) is deprecated since SDK 6.4.0 and removed in SDK 7.0.0. It still works, on the same
+ * advertising engine as the new API, and is kept here for apps that still use it. The app flow no
+ * longer uses it: only the "Legacy advertising" screen, opened from Settings, does.
+ *
+ * New code: `BlueGPSLib.instance.startAdvertising()` / `stopAdvertising()`, and
+ * `BlueGPSLib.instance.backgroundSession` to keep working in the background (see
+ * `screens/session/SessionScreen.kt`, `session/DemoSession.kt` and the SDK documentation, §4).
+ *
  * Centralized helper to work with [BlueGPSAdvertisingService].
  *
  * Responsibilities:
@@ -29,10 +40,22 @@ private const val TAG = "AdvManager"
  * - Call [startAdvertising] when an [AndroidAdvConfiguration] is available.
  * - Call [stopAdvertising] and then [unBindBlueGPSAdvertisingService] in teardown.
  */
+@Deprecated(
+    message = "BlueGPSAdvertisingService is removed in SDK 7.0.0: use BlueGPSLib.instance.startAdvertising()",
+    replaceWith = ReplaceWith(
+        "BlueGPSLib.instance.startAdvertising()",
+        "com.synapseslab.bluegps_sdk.core.BlueGPSLib",
+        "com.synapseslab.bluegps_sdk.core.startAdvertising",
+    ),
+)
 object AdvManager {
 
     // Reference to the bound service. It's null when the service is not bound/connected.
     private var blueGPSAdvertisingService: BlueGPSAdvertisingService? = null
+
+    private val _isBound = MutableStateFlow(false)
+    /** Whether the service is bound: [startAdvertising] and [stopAdvertising] do nothing until it is. */
+    val isBound: StateFlow<Boolean> = _isBound
 
     // Connection callback used by bindService/unbindService to manage the service reference.
     private val advertisingServiceConnection = object : ServiceConnection {
@@ -40,11 +63,13 @@ object AdvManager {
             // We've bound to BlueGPSAdvertisingService; cast the IBinder and get service instance.
             val binder = service as BlueGPSAdvertisingService.LocalBinder
             blueGPSAdvertisingService = binder.serviceBlueGPS
+            _isBound.value = true
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
             // System disconnected the service (e.g., process killed). Clear the reference.
             blueGPSAdvertisingService = null
+            _isBound.value = false
         }
     }
 
@@ -87,6 +112,7 @@ object AdvManager {
         // unbindService() does not call onServiceDisconnected: drop the reference here, or later
         // calls would reach a service instance Android has already destroyed.
         blueGPSAdvertisingService = null
+        _isBound.value = false
         try {
             Log.i(TAG, "context: ${context.hashCode()}  unBindBlueGPSAdvertisingService")
             context.unbindService(advertisingServiceConnection)

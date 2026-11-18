@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -33,14 +34,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import com.synapseslab.bluegpssdkdemo.advertising.AdvManager
+import com.synapseslab.bluegps_sdk.advertising.AdvertisingException
+import com.synapseslab.bluegps_sdk.background.SessionState
+import com.synapseslab.bluegps_sdk.core.BlueGPSLib
+import com.synapseslab.bluegps_sdk.core.backgroundSession
+import com.synapseslab.bluegps_sdk.core.stopAdvertising
 import com.synapseslab.bluegpssdkdemo.routes.AppRoutes
+import com.synapseslab.bluegpssdkdemo.session.DemoSession
 import com.synapseslab.bluegpssdkdemo.ui.theme.BlueGPSDemoAppTheme
 import com.synapseslab.bluegpssdkdemo.ui.theme.Primary
 
 /**
  * Main entry activity. Sets up Bluetooth prerequisites, requests runtime permissions,
- * binds the advertising service, and hosts the Compose navigation graph.
+ * and hosts the Compose navigation graph.
  */
 class MainActivity : ComponentActivity() {
 
@@ -57,6 +63,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // A "left on" flag with no session running means the process died without stopping it.
+        DemoSession.reconcile(applicationContext)
+
         // Check for BLE support and retrieve the adapter if available
         if (packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
             btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
@@ -68,9 +77,6 @@ class MainActivity : ComponentActivity() {
             val blueToothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             bluetoothLauncher?.launch(blueToothIntent) // Requires proper initialization of bluetoothLauncher
         }
-
-        // Bind the BlueGPS advertising service early so that advertising can be started later
-        AdvManager.bindBlueGPSAdvertisingService(applicationContext)
 
         setContent {
             BlueGPSDemoAppTheme {
@@ -151,14 +157,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Stop advertising when the activity really goes away. A configuration change (rotation)
-        // recreates it while the ViewModel survives and would not start advertising again.
-        if (!isChangingConfigurations) {
-            AdvManager.stopAdvertising()
+        // Advertising runs without a session only if started from the legacy screen: stop it when
+        // the activity really goes away (not on a configuration change such as a rotation).
+        if (!isChangingConfigurations &&
+            BlueGPSLib.instance.backgroundSession.state.value !is SessionState.Running
+        ) {
+            try {
+                BlueGPSLib.instance.stopAdvertising()
+            } catch (e: AdvertisingException) {
+                Log.e("MainActivity", "Advertising not stopped: ${e.code}")   // BLUETOOTH_NOT_AUTHORIZED
+            }
         }
-        // Unbind here, symmetric with the bind in onCreate. Unbinding in onStop left AdvManager
-        // talking to a destroyed service instance after the app went to background and back.
-        AdvManager.unBindBlueGPSAdvertisingService(applicationContext)
     }
 }
 

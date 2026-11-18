@@ -3,6 +3,7 @@ package com.synapseslab.bluegpssdkdemo.screens.map
 import android.content.res.Configuration
 import android.util.Log
 import android.view.ViewGroup
+import com.synapseslab.bluegpssdkdemo.screens.session.SessionHint
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -173,6 +174,7 @@ fun MapScreen(
             .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        SessionHint(modifier = Modifier.padding(8.dp))
         Box(modifier = Modifier.fillMaxSize()) { // Fill max size for the map and FAB container
             AndroidView(
                 modifier = Modifier

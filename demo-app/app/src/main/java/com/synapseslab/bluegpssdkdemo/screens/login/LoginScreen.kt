@@ -60,7 +60,8 @@ fun LoginScreen(
 
     val authLoginActivity = rememberLauncherForActivityResult(AuthLoginActivity()) { result ->
         if (result != null) {
-            Log.d(TAG, result.toString())
+            // Never log `result`: it holds the access and refresh tokens.
+            Log.d(TAG, "Login completed")
             // The login was successful, update the state in the ViewModel.
             loginViewModel.updateIsLoggedIn(true)
         } else {

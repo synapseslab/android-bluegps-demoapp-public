@@ -1,5 +1,6 @@
 package com.synapseslab.bluegpssdkdemo.screens.sse
 
+import com.synapseslab.bluegpssdkdemo.screens.session.SessionHint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -77,6 +78,8 @@ fun SSEScreen(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
+
+        SessionHint()
 
         // --- Region Log Section ---
         Column(

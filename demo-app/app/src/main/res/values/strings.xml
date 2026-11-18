@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">BlueGPS Demo App</string>
+
+    <!-- Background session notification: all its content is the app's -->
+    <string name="session_channel_name">Live session</string>
+    <string name="session_title">BlueGPS demo is active</string>
+    <string name="session_updates">Updates: %1$d</string>
+    <string name="session_stop">Stop</string>
 </resources>

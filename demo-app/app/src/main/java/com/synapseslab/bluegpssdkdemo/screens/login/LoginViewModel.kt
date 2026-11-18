@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.synapseslab.bluegps_sdk.authentication.core.BlueGPSAuthManager
 import com.synapseslab.bluegps_sdk.core.BlueGPSLib
 import com.synapseslab.bluegps_sdk.utils.Resource
-import com.synapseslab.bluegpssdkdemo.advertising.AdvManager
 import com.synapseslab.bluegpssdkdemo.constants.Environment
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,8 +42,9 @@ class LoginViewModel : ViewModel() {
     /**
      * Checks the user's current login status by observing the session validity from the BlueGPS SDK.
      *
-     * If the session is valid, it retrieves the user's configuration. If the session is invalid,
-     * it updates the UI state to reflect that the user is logged out.
+     * Nothing else starts here: advertising and beacon scanning start with the background session
+     * (Session tab). If the session is invalid, it updates the UI state to reflect that the user
+     * is logged out.
      */
     private fun checkLoginStatus() {
         viewModelScope.launch {
@@ -54,9 +54,7 @@ class LoginViewModel : ViewModel() {
                     // If the session is invalid, update the state to reflect that the user is logged out.
                     _isLoggedIn.value = false
                 } else {
-                    // If the session is valid, get the user's email from the access token claims.
                     BlueGPSLib.instance.accessToken()?.let {
-                        getOrCreateConfiguration()
                         _isLoggedIn.value = true
                     }
                 }
@@ -85,7 +83,8 @@ class LoginViewModel : ViewModel() {
                 }
 
                 is Resource.Success -> {
-                    Log.v(TAG, "Login in guest mode, ${result.data}")
+                    // Never log result.data: it holds the access token.
+                    Log.v(TAG, "Login in guest mode")
 
                     // update access token on the environment
                     Environment.sdkEnvironment.sdkToken = result.data.access_token
@@ -100,14 +99,12 @@ class LoginViewModel : ViewModel() {
     /**
      * Logs the current user out.
      *
-     * It stops BLE advertising first: the SDK logout stops position tracking but not advertising,
-     * and the device would keep broadcasting the tag of a user who has logged out.
-     * Then it calls the `logout` method from the `BlueGPSAuthManager`.
+     * From SDK 6.4.0 the logout stops everything by itself: background session, advertising,
+     * beacon scanning and the location modules stop before the credentials are cleared.
      * On successful logout, it updates the UI state to reflect that the user is logged out.
      * On failure, it logs an error message.
      */
     fun logout() {
-        AdvManager.stopAdvertising()
         viewModelScope.launch {
             BlueGPSAuthManager.instance.logout(handleCallback = {
                 if (it) {
@@ -128,34 +125,5 @@ class LoginViewModel : ViewModel() {
      */
     fun updateIsLoggedIn(value: Boolean) {
         _isLoggedIn.value = value
-    }
-
-    /**
-     * Retrieves (or creates if missing) the BlueGPS advertising configuration for the user.
-     * This is necessary for the SDK to start monitoring the user's location.
-     */
-    private fun getOrCreateConfiguration() {
-        viewModelScope.launch {
-            when (val res = BlueGPSLib.instance.getOrCreateConfiguration()) {
-                is Resource.Error -> {
-                    // Handle API errors (e.g., network issues, server errors).
-                    val errorMessage = "${res.code} ${res.message}"
-                    Log.e(TAG, errorMessage)
-                }
-
-                is Resource.Exception -> {
-                    // Handle unexpected exceptions during the process.
-                    Log.e(TAG, "${res.e}")
-                }
-
-                is Resource.Success -> {
-                    // On success, store the configuration and start monitoring.
-                    Log.d(TAG, "Configuration received for tagId: ${res.data.tagid}")
-
-                    // start advertising
-                    AdvManager.startAdvertising(androidAdvConfiguration = res.data)
-                }
-            }
-        }
     }
 }

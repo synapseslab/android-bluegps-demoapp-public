@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -25,7 +26,8 @@ import com.synapseslab.bluegpssdkdemo.ui.theme.Primary
 @Composable
 fun SettingsScreen(
     settingsViewModel: SettingsViewModel = viewModel(),
-    loginViewModel: LoginViewModel = viewModel()
+    loginViewModel: LoginViewModel = viewModel(),
+    onOpenLegacyAdvertising: () -> Unit = {},
 ) {
 
     val uiState by settingsViewModel.uiState.collectAsState()
@@ -57,6 +59,11 @@ fun SettingsScreen(
 
         Button(onClick = { loginViewModel.logout() }, colors = buttonColors) {
             Text(text = "Logout")
+        }
+
+        // The old advertising API, kept apart from the Session tab so the two ways are not mixed.
+        OutlinedButton(onClick = onOpenLegacyAdvertising) {
+            Text(text = "Legacy advertising (deprecated)")
         }
     }
 }
