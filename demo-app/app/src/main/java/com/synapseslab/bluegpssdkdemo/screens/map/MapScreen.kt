@@ -28,6 +28,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -56,9 +57,13 @@ import com.synapseslab.bluegps_sdk.data.model.map.GenericInfo
 import com.synapseslab.bluegps_sdk.data.model.map.JavascriptCallback
 import com.synapseslab.bluegps_sdk.data.model.map.TypeMapCallback
 import com.synapseslab.bluegpssdkdemo.ui.theme.Primary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 const val TAG = "MapScreen"
+
+/** How long the SDK keeps the map hidden at most if the init does not complete. */
+private const val MAP_REVEAL_TIMEOUT_MS = 15_000L
 
 /**
  * Composable function for the Map screen.
@@ -83,6 +88,17 @@ fun MapScreen(
 
     var showBottomSheet by remember { mutableStateOf(false) }
     var showMapCommand by rememberSaveable { mutableStateOf(false) }
+
+    // Since SDK 6.3.8 the map stays invisible until INIT_SDK_COMPLETED (no white flash), so the
+    // page's own loading animation is not visible: the app shows its own loader meanwhile.
+    // rememberSaveable: the map view is a singleton and INIT_SDK_COMPLETED arrives only once, so
+    // coming back to this tab must not show the loader again.
+    var mapLoading by rememberSaveable { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        // Same limit as the SDK: if the init does not complete, it shows the map anyway.
+        delay(MAP_REVEAL_TIMEOUT_MS)
+        mapLoading = false
+    }
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var floorList by remember { mutableStateOf<List<Floor>>(emptyList()) }
@@ -191,6 +207,7 @@ fun MapScreen(
                                 when (typeMapCallback) {
                                     TypeMapCallback.INIT_SDK_COMPLETED -> {
                                         data.payload?.let { it1 -> Log.d(TAG, it1) }
+                                        mapLoading = false
                                         showMapCommand = true
                                         post {
                                             when (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) {
@@ -225,6 +242,7 @@ fun MapScreen(
                                     }
 
                                     TypeMapCallback.ERROR -> {
+                                        mapLoading = false   // never leave the loader spinning
                                         val cType =
                                             object : TypeToken<GenericInfo>() {}.type
                                         val payloadResponse =
@@ -245,6 +263,13 @@ fun MapScreen(
                     }
                 }
             )
+
+            if (mapLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = Primary,
+                )
+            }
 
             // This Box will contain the FAB and the DropdownMenu, acting as their common parent
             // and allowing the DropdownMenu to implicitly anchor to the FAB's position within this scope.

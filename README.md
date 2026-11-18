@@ -295,6 +295,24 @@ The root screen after login. It:
 
 Displays a full-screen interactive indoor map powered by `BlueGPSMapView`.
 
+#### Loader while the map loads
+
+Since SDK 6.3.8 the map stays invisible from `initMap()` until `TypeMapCallback.INIT_SDK_COMPLETED`
+and then fades in, so there is no white flash. The page's own loading animation is not visible
+either: what to show meanwhile is the app's choice. The demo shows a `CircularProgressIndicator`
+over the map until:
+
+- `INIT_SDK_COMPLETED` arrives;
+- or an `ERROR` arrives, so the loader never spins forever;
+- or 15 seconds pass, the same limit after which the SDK shows the map anyway.
+
+`AUTH_ERROR` does not hide it: it arrives during the init, which goes on after `initAuth()`. The
+state is kept with `rememberSaveable`: the map view is a singleton and `INIT_SDK_COMPLETED` arrives
+only once, so coming back to the tab does not show the loader again.
+
+To show the page's own animation instead, set `hideUntilReady = false` on the map view before
+`initMap()`: the white flash comes back with it.
+
 #### Map configuration (`MapViewManager`)
 
 `MapViewManager` is a singleton that owns the single `BlueGPSMapView` instance and configures it with:
