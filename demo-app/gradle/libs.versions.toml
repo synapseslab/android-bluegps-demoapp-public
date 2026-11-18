@@ -8,8 +8,10 @@ composeBom = "2024.09.00"
 navigationCompose = "2.7.7"
 lifecycleViewmodelCompose = "2.10.0"
 androidBlueGPSSdk = "6.4.1"
+desugarJdkLibs = "2.1.5"
 
 [libraries]
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 android-bluegps-sdk = { group = "com.github.synapseslab", name = "android-bluegps-sdk-public", version.ref = "androidBlueGPSSdk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
